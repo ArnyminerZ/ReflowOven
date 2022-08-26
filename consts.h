@@ -7,10 +7,13 @@
 // The baud rate for the Serial Port
 #define SERIAL_SPEED 115200
 
+// Whether or not to invert the relay
+#define RELAY_INVERT true
+
 #define BUTTON_PIN 16
-#define RELAY_TOP_PIN PIN_D2
-#define RELAY_BOT_PIN PIN_D2
-#define BUZZER_PIN LED_BUILTIN
+#define RELAY_TOP_PIN 5 // D2
+#define RELAY_BOT_PIN 4 // D1
+#define BUZZER_PIN 2
 #define DOOR_SWITCH PIN_D4
 #define THERM_PIN A0
 
@@ -38,8 +41,10 @@
 // Timing constants
 #define DISP_TEMP 1000   // The amount of time between screen temperature updates
 #define DISP_STAT 1000   // The amount of time between screen status updates
+#define DISP_OTA 1000    // The amount of time between OTA status updates
 #define ALARM_CYCLE 1000 // The cycle time of the alarm for beeping (half time beep on, half time beep off)
 #define BUTTON_TIME 3000 // The amount of time the button must be pressed for the process to start
+#define PWM_CYCLE 1000   // The time that it takes for the pwm controller to make a cycle
 
 // Reflow constants
 #define REFLOW_STAGE_OFF -2
@@ -49,8 +54,33 @@
 #define REFLOW_STAGE_REFLOW 2
 #define REFLOW_STAGE_COOL 3
 
+#define POWER_PREHEAT_1_TOP 0
+#define POWER_PREHEAT_1_BOT 3
+#define POWER_PREHEAT_2_TOP 1
+#define POWER_PREHEAT_2_BOT 4
+#define POWER_PREHEAT_3_TOP 3
+#define POWER_PREHEAT_3_BOT 4
+
+#define POWER_SOAK_1_TOP 2
+#define POWER_SOAK_1_BOT 3
+#define POWER_SOAK_2_TOP 2
+#define POWER_SOAK_2_BOT 4
+#define POWER_SOAK_3_TOP 3
+#define POWER_SOAK_3_BOT 4
+
+#define POWER_REFLOW_1_TOP 3
+#define POWER_REFLOW_1_BOT 4
+#define POWER_REFLOW_2_TOP 3
+#define POWER_REFLOW_2_BOT 4
+#define POWER_REFLOW_3_TOP 3
+#define POWER_REFLOW_3_BOT 4
+
 // Sensor constants
 #define SENSOR_TEMP_CYCLES 100 // The amount of measures to make for the temperature sensor
+
+// Web server constants
+#define MDNS_HOST "reflow-oven"
+#define OTA_PORT 8266
 
 // Log constants
 #define TAG_SCREEN "Screen"

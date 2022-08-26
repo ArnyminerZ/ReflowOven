@@ -16,11 +16,13 @@ TFT_eSPI tft = TFT_eSPI(); // Invoke custom library
 
 #include "consts.h"
 #include "logger.h"
+#include "web.h"
 
 // Timing storage
 unsigned long loopTimer;
 unsigned long dispTempMillis;  // The millis at last screen temperature update
 unsigned long dispStatMillis;  // The millis at last screen status update
+unsigned long otaMillis;       // The millis at last screen OTA status update
 unsigned long beepMillis;      // The millis at last beep cycle
 unsigned long buttonMillis;    // The millis the button has been pressed
 
@@ -55,13 +57,15 @@ void resetDisplay();
 void displayTemp();
 void displayStatus();
 void displayAlarms();
+void displayOTA();
 void displayOpenDoorAlarm();
 void pwmController();
 void reflowController();
+void controlRelay(bool top, bool bottom);
 
 void setup() {
   tft.init();
-  tft.setRotation(0);
+  tft.setRotation(2);
   
   logInit();
 
@@ -78,10 +82,13 @@ void setup() {
   loopTimer = millis();
   beepMillis = millis();
   buttonMillis = millis();
+  otaMillis = millis();
 
   logln(TAG_IO, "Configuring ports...");
   pinMode(RELAY_TOP_PIN, OUTPUT); // Define the top relay pin as output
   pinMode(RELAY_BOT_PIN, OUTPUT); // Define the bottom relay pin as output
+  digitalWrite(RELAY_TOP_PIN, RELAY_INVERT); // Turn off relays manually
+  digitalWrite(RELAY_BOT_PIN, RELAY_INVERT);
   topHeater = 0;                  // Turn off the relays
   botHeater = 0;
 
@@ -102,6 +109,9 @@ void setup() {
   temperatureAccum = 0.0;
   temperatureCounter = 0;
 
+  // Connect to the WiFi network and initialize the web server
+  web_init();
+
   // Show boot screen for at least 3 seconds
   logln(TAG_SCREEN, "Waiting for 3 seconds...");
   while(millis() - loopTimer < 3000) {
@@ -114,6 +124,9 @@ void setup() {
 }
 
 void loop() {
+  // Call the web loop
+  web_loop();
+  
   // Perform sensor readings
   measureTemp();
   
@@ -165,6 +178,11 @@ void loop() {
     dispStatMillis = millis();
     updatedDisplay = true;
   }
+  if(displayReset || millis() - otaMillis >= DISP_OTA) {
+    displayOTA();
+    otaMillis = millis();
+    updatedDisplay = true;
+  }
   if (updatedDisplay) {
     displayAlarms();
   }
@@ -182,8 +200,18 @@ void resetDisplay() {
   
   tft.setTextColor(TFT_WHITE, COLOR_BACKGROUND);
   tft.drawString("Reflow oven by Arnau Mora", 5, HEIGHT - 20, 2);
+  if(wifi_connected)
+    tft.drawString("IP: " + IpAddress2String(WiFi.localIP()), 5, HEIGHT - 40, 2);
+  else
+    tft.drawString("WiFi not connected", 5, HEIGHT - 40, 2);
 
   displayReset = true;
+}
+
+void displayOTA() {
+  tft.fillRect(5, HEIGHT - 80, WIDTH - 10, 20, COLOR_BACKGROUND);
+  if (ota_update)
+    tft.drawString("Updating... " + String(ota_progress) + "%", 5, HEIGHT - 60, 2);
 }
 
 void displayTemp() {
@@ -270,16 +298,16 @@ void reflowController() {
         // Preheat stage goes up to 140ºC with 3 sub-stages
         if (temp < 40) { // Heat slowly
           reflowSubstage = 1;
-          topHeater = 0;
-          botHeater = 5;
+          topHeater = POWER_PREHEAT_1_TOP;
+          botHeater = POWER_PREHEAT_1_BOT;
         } else if (temp < 100) { // Heat a bit quicker
           reflowSubstage = 2;
-          topHeater = 1;
-          botHeater = 5;
+          topHeater = POWER_PREHEAT_2_TOP;
+          botHeater = POWER_PREHEAT_2_BOT;
         } else if (temp < 140) { // Heat quicker
           reflowSubstage = 3;
-          topHeater = 3;
-          botHeater = 6;
+          topHeater = POWER_PREHEAT_3_TOP;
+          botHeater = POWER_PREHEAT_3_BOT;
         } else // Temperature higher than 140ºC, switch stage
           reflowStage++;
         break;
@@ -295,18 +323,18 @@ void reflowController() {
         if (temp < 150) { // Reduce heating rate between 140 to 150ºC
           // Soak 1
           reflowSubstage = 1;
-          topHeater = 1;
-          botHeater = 4;
+          topHeater = POWER_SOAK_1_TOP;
+          botHeater = POWER_SOAK_1_BOT;
         } else if (temp < 170) { // Heat from 150ºC to 170ºC slowly
           // Soak 2
           reflowSubstage = 2;
-          topHeater = 2;
-          botHeater = 5;
+          topHeater = POWER_SOAK_2_TOP;
+          botHeater = POWER_SOAK_2_BOT;
         } else if (temp < 180) { // Heat from 170ºC to 180ºC a bit faster
           // Soak 3
           reflowSubstage = 3;
-          topHeater = 2;
-          botHeater = 6;
+          topHeater = POWER_SOAK_3_TOP;
+          botHeater = POWER_SOAK_3_BOT;
         } else // Temperature higher than 180ºC, switch stage
           reflowStage++;
         break;
@@ -315,18 +343,18 @@ void reflowController() {
         if (temp < 190) {
           // Reflow 1
           reflowSubstage = 1;
-          topHeater = 3;
-          botHeater = 6;
+          topHeater = POWER_REFLOW_1_TOP;
+          botHeater = POWER_REFLOW_1_TOP;
         } else if (temp < 190) {
           // Reflow 2
           reflowSubstage = 2;
-          topHeater = 3;
-          botHeater = 6;
+          topHeater = POWER_REFLOW_2_TOP;
+          botHeater = POWER_REFLOW_2_TOP;
         } else if (temp < 212) {
           // Reflow 3
           reflowSubstage = 3;
-          topHeater = 3;
-          botHeater = 6;
+          topHeater = POWER_REFLOW_3_TOP;
+          botHeater = POWER_REFLOW_3_TOP;
         } else { // Temperature higher than 212ºC, switch stage
           // Save time when the door shall be open
           reflowDoorOpen = (millis() - reflowStart) / 1000;
@@ -371,45 +399,61 @@ void reflowController() {
 
 void pwmController() {
   unsigned long elapsed = millis() - loopTimer;
+
+  int cycle = PWM_CYCLE / 6;
+  int cycle2 = cycle * 2;
+  int cycle3 = cycle * 3;
+  int cycle4 = cycle * 4;
+  int cycle5 = cycle * 5;
+  int cycle6 = cycle * 6;
   
   // Time slice 1 (0ms-166ms)
-  if (elapsed < 166) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 1);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 1);
-  }
+  if (elapsed < cycle)
+    controlRelay(
+      topHeater >= 1,
+      botHeater >= 1
+    );
 
   // Time slice 2 (166ms-333ms)
-  if (elapsed >= 166 && elapsed < 333) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 2);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 2);
-  }
+  if (elapsed >= cycle && elapsed < cycle2)
+    controlRelay(
+      topHeater >= 2,
+      botHeater >= 2
+    );
 
   // Time slice 3 (333ms-500ms)
-  if (elapsed >= 333 && elapsed < 500) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 3);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 3);
-  }
+  if (elapsed >= cycle2 && elapsed < cycle3)
+    controlRelay(
+      topHeater >= 3,
+      botHeater >= 3
+    );
 
   // Time slice 4 (500ms-666ms)
-  if (elapsed >= 500 && elapsed < 666) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 4);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 4);
-  }
+  if (elapsed >= cycle3 && elapsed < cycle4)
+    controlRelay(
+      topHeater >= 4,
+      botHeater >= 4
+    );
 
   // Time slice 5 (666ms-833ms)
-  if (elapsed >= 666 && elapsed < 833) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 5);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 5);
-  }
+  if (elapsed >= cycle4 && elapsed < cycle5)
+    controlRelay(
+      topHeater >= 5,
+      botHeater >= 5
+    );
 
   // Time slice 6 (833ms-1000ms)
-  if (elapsed >= 833 && elapsed < 1000) {
-    digitalWrite(RELAY_TOP_PIN, topHeater >= 5);
-    digitalWrite(RELAY_BOT_PIN, botHeater >= 5);
-  }
+  if (elapsed >= cycle5 && elapsed < cycle6)
+    controlRelay(
+      topHeater >= 6,
+      botHeater >= 6
+    );
 
+  if (elapsed > cycle6)
+    controlRelay(false, false);
+  
   // Reset timer
-  if (elapsed >= 1000)
+  if (elapsed >= cycle6)
     loopTimer = millis();
 }
 
@@ -432,4 +476,9 @@ void measureTemp() {
     temperatureCounter = 0;
     temperatureAccum = 0;
   }
+}
+
+void controlRelay(bool top, bool bot) {
+  digitalWrite(RELAY_TOP_PIN, top != RELAY_INVERT);
+  digitalWrite(RELAY_BOT_PIN, bot != RELAY_INVERT);
 }
