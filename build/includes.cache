@@ -1,0 +1,37 @@
+[
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\Arnym\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.0.2\\cores\\esp8266"
+  },
+  {
+    "Sourcefile": null,
+    "Include": "",
+    "Includepath": "C:\\Users\\Arnym\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.0.2\\variants\\nodemcu"
+  },
+  {
+    "Sourcefile": "c:\\Users\\Arnym\\Documents\\Arduino\\reflow_oven\\build\\sketch\\reflow_oven.ino.cpp",
+    "Include": "SPI.h",
+    "Includepath": "C:\\Users\\Arnym\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.0.2\\libraries\\SPI"
+  },
+  {
+    "Sourcefile": "c:\\Users\\Arnym\\Documents\\Arduino\\reflow_oven\\build\\sketch\\reflow_oven.ino.cpp",
+    "Include": "TFT_eSPI.h",
+    "Includepath": "C:\\Users\\Arnym\\Documents\\Arduino\\libraries\\TFT_eSPI"
+  },
+  {
+    "Sourcefile": "c:\\Users\\Arnym\\Documents\\Arduino\\reflow_oven\\build\\sketch\\reflow_oven.ino.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Users\\Arnym\\AppData\\Local\\Arduino15\\packages\\esp8266\\hardware\\esp8266\\3.0.2\\libraries\\SPI\\SPI.cpp",
+    "Include": "",
+    "Includepath": null
+  },
+  {
+    "Sourcefile": "C:\\Users\\Arnym\\Documents\\Arduino\\libraries\\TFT_eSPI\\TFT_eSPI.cpp",
+    "Include": "",
+    "Includepath": null
+  }
+]
